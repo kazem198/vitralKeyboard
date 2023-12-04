@@ -1,5 +1,6 @@
 import cv2
 from cvzone.HandTrackingModule import HandDetector
+from pynput.keyboard import Controller
 
 cap = cv2.VideoCapture(0)
 cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
@@ -7,9 +8,13 @@ cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 960)
 
 detector = HandDetector(detectionCon=0.8)
 
+timeDelay = 0
+keyPress = ""
+keyboard = Controller()
+
 
 class Buttom:
-    def __init__(self, pos, value, size=[75, 75]):
+    def __init__(self, pos, value, size=[85, 85]):
 
         self.pos = pos
         self.size = size
@@ -20,17 +25,29 @@ class Buttom:
 
         w, h = self.size
         cv2.rectangle(img, self.pos, (x+w, y+h),
-                      (255, 0, 255), cv2.FILLED)
+                      (255, 100, 255), cv2.FILLED)
         cv2.rectangle(img, self.pos, (x+w, y+h), (0, 0, 0), 2)
-        cv2.putText(img, self.value, (self.pos[0]+30, self.pos[1]+70),
+        cv2.putText(img, self.value, (self.pos[0]+15, self.pos[1]+50),
                     cv2.FONT_HERSHEY_SIMPLEX, 2, (255, 0, 0), 2)
         return img
 
-    def marker(self, pos):
+    def findValue(self, pos, distance):
         x, y = pos
+        w, h = self.size
+
         if self.pos[0] < x < self.pos[0]+self.size[0] and self.pos[1] < y < self.pos[1]+self.size[1]:
-            # print(self.value)
-            return self.value
+
+            cv2.rectangle(img, self.pos, (self.pos[0]+w+10, self.pos[1]+h+10),
+                          (255, 0, 255), cv2.FILLED)
+            cv2.rectangle(
+                img, self.pos, (self.pos[0]+w+10, self.pos[1]+h+10), (0, 0, 0), 2)
+
+            cv2.putText(img, self.value, (self.pos[0]+15, self.pos[1]+50),
+                        cv2.FONT_HERSHEY_SIMPLEX, 2, (255, 0, 0), 3)
+
+            if distance < 70:
+
+                return self.value
 
 
 # button = Buttom([100, 100], "Q")
@@ -60,12 +77,31 @@ while True:
         lmList1 = hand1["lmList"]
         bbox1 = hand1["bbox"]
         # print(lmList1[8])
-        for i, button in enumerate(buttons):
-            key = button.marker(lmList1[8][0:2])
-            if key is not None:
-                print(key)
+        length, info, img = detector.findDistance(lmList1[8][0:2], lmList1[12][0:2], img, color=(255, 0, 255),
+                                                  scale=10)
 
-    # img = button.draw(img)
+        for button in buttons:
+
+            key = button.findValue(lmList1[8][0:2], length)
+            if key is not None and timeDelay == 0:
+                print(key)
+                keyPress += key
+                keyboard.press(key)
+
+                timeDelay = 1
+            if timeDelay != 0:
+                timeDelay += 1
+                if timeDelay > 100:
+                    timeDelay = 0
+
+    cv2.rectangle(img, (300, 400), (900, 500),
+                  (255, 0, 255), cv2.FILLED)
+    cv2.rectangle(
+        img, (300, 400), (900, 500), (0, 0, 0), 2)
+
+    cv2.putText(img, keyPress, (330, 450),
+                cv2.FONT_HERSHEY_SIMPLEX, 2, (255, 0, 0), 3)
+
     cv2.imshow("img", img)
     if cv2.waitKey(1) & 0xFF == ord("q"):
         cv2.destroyAllWindows()
